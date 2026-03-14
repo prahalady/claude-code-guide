@@ -1,0 +1,1303 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Claude Code 비서 운영 매뉴얼</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;600;700;900&family=Bebas+Neue&family=DM+Mono:wght@400;500&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --ink: #0f0e0c;
+      --paper: #f5f0e8;
+      --paper-dark: #ede7d9;
+      --accent: #c8401a;
+      --accent-light: #f0d5cc;
+      --gold: #b8922a;
+      --muted: #7a7060;
+      --rule: #c8bfad;
+      --step-1: #c8401a;
+      --step-2: #2a6db5;
+      --step-3: #1a8c5a;
+      --step-4: #8c3ab5;
+      --step-5: #b5821a;
+      --step-6: #1a7ab5;
+      --step-final: #0f0e0c;
+      --mono: 'DM Mono', monospace;
+      --serif: 'Noto Serif KR', serif;
+      --sans: 'Noto Sans KR', sans-serif;
+      --display: 'Bebas Neue', sans-serif;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background-color: var(--paper);
+      color: var(--ink);
+      font-family: var(--serif);
+      overflow-x: hidden;
+      cursor: default;
+    }
+
+    /* ─── NOISE TEXTURE OVERLAY ─── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.035'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 9999;
+      opacity: 0.4;
+    }
+
+    /* ─── PROGRESS BAR ─── */
+    #progress-bar {
+      position: fixed;
+      top: 0; left: 0;
+      height: 3px;
+      width: 0%;
+      background: var(--accent);
+      z-index: 1000;
+      transition: width 0.1s linear;
+    }
+
+    /* ─── HEADER ─── */
+    header {
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      padding: 0 6vw 8vh;
+      overflow: hidden;
+      background-color: var(--ink);
+    }
+
+    .header-bg-text {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-family: var(--display);
+      font-size: clamp(120px, 22vw, 320px);
+      color: rgba(255,255,255,0.03);
+      white-space: nowrap;
+      letter-spacing: 0.05em;
+      user-select: none;
+      pointer-events: none;
+    }
+
+    .header-kicker {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 2rem;
+      opacity: 0;
+      animation: fadeUp 0.8s ease 0.2s forwards;
+    }
+
+    .header-title {
+      font-family: var(--display);
+      font-size: clamp(52px, 9vw, 130px);
+      line-height: 0.92;
+      color: #fff;
+      letter-spacing: 0.02em;
+      opacity: 0;
+      animation: fadeUp 0.9s ease 0.4s forwards;
+    }
+
+    .header-title span {
+      color: var(--accent);
+    }
+
+    .header-subtitle {
+      margin-top: 2.5rem;
+      font-family: var(--sans);
+      font-size: clamp(14px, 1.6vw, 18px);
+      font-weight: 300;
+      color: rgba(255,255,255,0.55);
+      max-width: 520px;
+      line-height: 1.7;
+      opacity: 0;
+      animation: fadeUp 1s ease 0.6s forwards;
+    }
+
+    .header-rule {
+      position: absolute;
+      right: 6vw;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      background: rgba(255,255,255,0.08);
+    }
+
+    .header-index {
+      position: absolute;
+      right: calc(6vw + 24px);
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 1.2rem;
+      opacity: 0;
+      animation: fadeIn 1s ease 1s forwards;
+    }
+
+    .header-index a {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.3);
+      text-decoration: none;
+      writing-mode: vertical-rl;
+      transition: color 0.3s;
+    }
+
+    .header-index a:hover { color: var(--accent); }
+
+    .scroll-hint {
+      position: absolute;
+      bottom: 3vh;
+      right: 6vw;
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      color: rgba(255,255,255,0.25);
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      opacity: 0;
+      animation: fadeIn 1s ease 1.4s forwards;
+    }
+
+    .scroll-hint::before {
+      content: '';
+      display: block;
+      width: 1px;
+      height: 40px;
+      background: rgba(255,255,255,0.2);
+      animation: scrollLine 2s ease-in-out infinite;
+    }
+
+    @keyframes scrollLine {
+      0%, 100% { transform: scaleY(1); opacity: 0.3; }
+      50% { transform: scaleY(0.5); opacity: 0.8; }
+    }
+
+    /* ─── INTRO STRIP ─── */
+    .intro-strip {
+      background: var(--accent);
+      padding: 2rem 6vw;
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+      overflow: hidden;
+    }
+
+    .intro-strip-text {
+      font-family: var(--display);
+      font-size: clamp(16px, 2.5vw, 28px);
+      color: #fff;
+      letter-spacing: 0.08em;
+      white-space: nowrap;
+      animation: marquee 20s linear infinite;
+    }
+
+    @keyframes marquee {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+
+    /* ─── MAIN LAYOUT ─── */
+    main {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 0 6vw;
+    }
+
+    /* ─── SECTION COMMON ─── */
+    .section {
+      padding: 8vh 0;
+      border-bottom: 1px solid var(--rule);
+      opacity: 0;
+      transform: translateY(40px);
+      transition: opacity 0.7s ease, transform 0.7s ease;
+    }
+
+    .section.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* ─── STEP CARD ─── */
+    .step-card {
+      display: grid;
+      grid-template-columns: 1fr 2fr;
+      gap: 4rem;
+      align-items: start;
+    }
+
+    @media (max-width: 768px) {
+      .step-card { grid-template-columns: 1fr; gap: 2rem; }
+    }
+
+    .step-left {
+      position: sticky;
+      top: 8vh;
+    }
+
+    .step-number {
+      font-family: var(--display);
+      font-size: clamp(80px, 12vw, 160px);
+      line-height: 0.85;
+      color: var(--paper-dark);
+      letter-spacing: -0.02em;
+      -webkit-text-stroke: 2px var(--rule);
+    }
+
+    .step-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 1rem;
+      padding: 0.4rem 1rem;
+      border-radius: 2px;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #fff;
+    }
+
+    .step-badge-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.6);
+      flex-shrink: 0;
+    }
+
+    .step-right {}
+
+    .step-heading {
+      font-family: var(--display);
+      font-size: clamp(32px, 4.5vw, 58px);
+      line-height: 1;
+      letter-spacing: 0.03em;
+      margin-bottom: 0.5rem;
+    }
+
+    .step-subheading {
+      font-family: var(--mono);
+      font-size: 12px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 2rem;
+    }
+
+    .step-body {
+      font-family: var(--sans);
+      font-size: clamp(15px, 1.4vw, 17px);
+      font-weight: 300;
+      line-height: 1.85;
+      color: #2a2620;
+      margin-bottom: 2rem;
+    }
+
+    /* ─── ANALOGY BOX ─── */
+    .analogy-box {
+      position: relative;
+      background: var(--paper-dark);
+      border-left: 3px solid currentColor;
+      padding: 1.5rem 2rem;
+      margin: 2rem 0;
+      border-radius: 0 4px 4px 0;
+    }
+
+    .analogy-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.6rem;
+    }
+
+    .analogy-text {
+      font-family: var(--serif);
+      font-size: clamp(14px, 1.3vw, 16px);
+      line-height: 1.75;
+      font-style: italic;
+      color: var(--ink);
+    }
+
+    /* ─── CODE TAG ─── */
+    .code-tag {
+      display: inline-block;
+      background: var(--ink);
+      color: var(--accent);
+      font-family: var(--mono);
+      font-size: 12px;
+      padding: 0.15rem 0.6rem;
+      border-radius: 2px;
+      letter-spacing: 0.05em;
+    }
+
+    /* ─── VISUAL DIAGRAM ─── */
+    .diagram {
+      margin: 3rem 0;
+      background: var(--ink);
+      border-radius: 8px;
+      padding: 2.5rem;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .diagram-title {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.3);
+      margin-bottom: 2rem;
+    }
+
+    .diagram-flow {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      flex-wrap: wrap;
+    }
+
+    .diagram-node {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .diagram-node-box {
+      width: 80px;
+      height: 80px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #fff;
+      text-align: center;
+      line-height: 1.3;
+    }
+
+    .diagram-node-label {
+      font-family: var(--mono);
+      font-size: 9px;
+      color: rgba(255,255,255,0.4);
+      letter-spacing: 0.1em;
+    }
+
+    .diagram-arrow {
+      font-size: 20px;
+      color: rgba(255,255,255,0.2);
+      padding: 0 0.5rem;
+    }
+
+    /* ─── CONTEXT COST SECTION ─── */
+    .context-section {
+      background: var(--ink);
+      color: #fff;
+      padding: 8vh 6vw;
+      margin: 0 -6vw;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .context-section::before {
+      content: 'CONTEXT';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-family: var(--display);
+      font-size: clamp(80px, 15vw, 200px);
+      color: rgba(255,255,255,0.03);
+      white-space: nowrap;
+      pointer-events: none;
+    }
+
+    .context-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 2px;
+      margin-top: 4rem;
+    }
+
+    @media (max-width: 768px) {
+      .context-grid { grid-template-columns: 1fr; }
+    }
+
+    .context-card {
+      background: rgba(255,255,255,0.04);
+      padding: 2rem;
+      border: 1px solid rgba(255,255,255,0.06);
+      transition: background 0.3s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .context-card:hover {
+      background: rgba(255,255,255,0.07);
+    }
+
+    .context-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+    }
+
+    .context-card.good::before { background: #1a8c5a; }
+    .context-card.bad::before { background: var(--accent); }
+    .context-card.tip::before { background: var(--gold); }
+
+    .context-card-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      margin-bottom: 1rem;
+    }
+
+    .context-card.good .context-card-label { color: #1a8c5a; }
+    .context-card.bad .context-card-label { color: var(--accent); }
+    .context-card.tip .context-card-label { color: var(--gold); }
+
+    .context-card-title {
+      font-family: var(--display);
+      font-size: clamp(22px, 2.5vw, 32px);
+      color: #fff;
+      margin-bottom: 1rem;
+      letter-spacing: 0.03em;
+    }
+
+    .context-card-text {
+      font-family: var(--sans);
+      font-size: 14px;
+      font-weight: 300;
+      color: rgba(255,255,255,0.6);
+      line-height: 1.8;
+    }
+
+    /* ─── SUMMARY TABLE ─── */
+    .summary-section {
+      padding: 8vh 0;
+    }
+
+    .summary-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 3rem;
+    }
+
+    .summary-table th {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--muted);
+      text-align: left;
+      padding: 0.8rem 1.5rem;
+      border-bottom: 2px solid var(--ink);
+    }
+
+    .summary-table td {
+      font-family: var(--sans);
+      font-size: 14px;
+      padding: 1.2rem 1.5rem;
+      border-bottom: 1px solid var(--rule);
+      vertical-align: top;
+      line-height: 1.6;
+    }
+
+    .summary-table tr:hover td {
+      background: var(--paper-dark);
+    }
+
+    .summary-table .step-dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      margin-right: 0.5rem;
+      flex-shrink: 0;
+    }
+
+    .summary-table .step-name {
+      font-family: var(--mono);
+      font-size: 12px;
+      letter-spacing: 0.1em;
+      font-weight: 500;
+    }
+
+    /* ─── SECTION HEADER ─── */
+    .section-header {
+      display: flex;
+      align-items: baseline;
+      gap: 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .section-num {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.15em;
+    }
+
+    /* ─── FOOTER ─── */
+    footer {
+      background: var(--ink);
+      color: rgba(255,255,255,0.4);
+      padding: 4rem 6vw;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      flex-wrap: wrap;
+      gap: 2rem;
+    }
+
+    .footer-brand {
+      font-family: var(--display);
+      font-size: 32px;
+      color: rgba(255,255,255,0.08);
+      letter-spacing: 0.1em;
+    }
+
+    .footer-copy {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      line-height: 1.8;
+      text-align: right;
+    }
+
+    /* ─── NAV ─── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      padding: 1.2rem 6vw;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(15,14,12,0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      transform: translateY(-100%);
+      transition: transform 0.4s ease;
+    }
+
+    nav.visible { transform: translateY(0); }
+
+    .nav-brand {
+      font-family: var(--mono);
+      font-size: 12px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.6);
+    }
+
+    .nav-brand span { color: var(--accent); }
+
+    .nav-links {
+      display: flex;
+      gap: 2rem;
+      list-style: none;
+    }
+
+    .nav-links a {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.35);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover { color: var(--accent); }
+
+    /* ─── ANIMATIONS ─── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    /* ─── STEP COLORS ─── */
+    .s1 { color: var(--step-1); }
+    .s2 { color: var(--step-2); }
+    .s3 { color: var(--step-3); }
+    .s4 { color: var(--step-4); }
+    .s5 { color: var(--step-5); }
+    .s6 { color: var(--step-6); }
+    .sf { color: var(--step-final); }
+
+    .bg-s1 { background: var(--step-1); }
+    .bg-s2 { background: var(--step-2); }
+    .bg-s3 { background: var(--step-3); }
+    .bg-s4 { background: var(--step-4); }
+    .bg-s5 { background: var(--step-5); }
+    .bg-s6 { background: var(--step-6); }
+    .bg-sf { background: var(--step-final); }
+
+    .border-s1 { border-color: var(--step-1); }
+    .border-s2 { border-color: var(--step-2); }
+    .border-s3 { border-color: var(--step-3); }
+    .border-s4 { border-color: var(--step-4); }
+    .border-s5 { border-color: var(--step-5); }
+    .border-s6 { border-color: var(--step-6); }
+    .border-sf { border-color: var(--step-final); }
+
+    /* ─── ICON CIRCLES ─── */
+    .icon-circle {
+      width: 56px; height: 56px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      flex-shrink: 0;
+      margin-bottom: 1.5rem;
+    }
+
+    /* ─── HIGHLIGHT PILL ─── */
+    .highlight-pill {
+      display: inline-block;
+      padding: 0.2rem 0.8rem;
+      border-radius: 100px;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      font-weight: 500;
+    }
+
+    /* ─── BRAIN METER ─── */
+    .brain-meter {
+      margin: 2.5rem 0;
+    }
+
+    .brain-meter-label {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.4);
+      margin-bottom: 0.8rem;
+    }
+
+    .brain-meter-bar {
+      height: 8px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 0.4rem;
+    }
+
+    .brain-meter-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 1.5s cubic-bezier(0.16, 1, 0.3, 1);
+      width: 0%;
+    }
+
+    .brain-meter-fill.danger { background: var(--accent); }
+    .brain-meter-fill.safe { background: #1a8c5a; }
+
+    .brain-meter-desc {
+      font-family: var(--sans);
+      font-size: 12px;
+      color: rgba(255,255,255,0.35);
+    }
+
+    /* ─── RESPONSIVE ─── */
+    @media (max-width: 768px) {
+      .header-index { display: none; }
+      .header-rule { display: none; }
+      .scroll-hint { display: none; }
+      .nav-links { display: none; }
+      footer { flex-direction: column; align-items: flex-start; }
+      .footer-copy { text-align: left; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="progress-bar"></div>
+
+  <!-- NAV -->
+  <nav id="main-nav">
+    <div class="nav-brand"><span>Claude</span> Code 운영 가이드</div>
+    <ul class="nav-links">
+      <li><a href="#step1">CLAUDE.md</a></li>
+      <li><a href="#step2">스킬</a></li>
+      <li><a href="#step3">MCP</a></li>
+      <li><a href="#step4">서브에이전트</a></li>
+      <li><a href="#step5">훅</a></li>
+      <li><a href="#step6">플러그인</a></li>
+      <li><a href="#context">맥락 비용</a></li>
+    </ul>
+  </nav>
+
+  <!-- HEADER -->
+  <header>
+    <div class="header-bg-text">CLAUDE</div>
+    <div class="header-rule"></div>
+    <div class="header-index">
+      <a href="#step1">CLAUDE.md</a>
+      <a href="#step2">Skill</a>
+      <a href="#step3">MCP</a>
+      <a href="#step4">Subagent</a>
+      <a href="#step5">Hook</a>
+      <a href="#step6">Plugin</a>
+      <a href="#context">Context</a>
+    </div>
+    <div class="header-kicker">AI 비서 운영 완전 정복 · 7단계 프레임워크</div>
+    <h1 class="header-title">
+      CLAUDE<br />
+      CODE<br />
+      <span>운영</span><br />
+      가이드
+    </h1>
+    <p class="header-subtitle">
+      AI 비서를 처음 고용했다면, 어떻게 세팅해야 할까요?<br />
+      포스트잇부터 공구 세트까지 — 7단계로 완성하는 Claude Code 완전 운영법.
+    </p>
+    <div class="scroll-hint">Scroll</div>
+  </header>
+
+  <!-- MARQUEE STRIP -->
+  <div class="intro-strip">
+    <div class="intro-strip-text">
+      CLAUDE.md &nbsp;·&nbsp; SKILL &nbsp;·&nbsp; MCP &nbsp;·&nbsp; SUBAGENT &nbsp;·&nbsp; HOOK &nbsp;·&nbsp; PLUGIN &nbsp;·&nbsp; CONTEXT COST &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+      CLAUDE.md &nbsp;·&nbsp; SKILL &nbsp;·&nbsp; MCP &nbsp;·&nbsp; SUBAGENT &nbsp;·&nbsp; HOOK &nbsp;·&nbsp; PLUGIN &nbsp;·&nbsp; CONTEXT COST &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <main>
+
+    <!-- STEP 1 -->
+    <section class="section" id="step1">
+      <div class="step-card">
+        <div class="step-left">
+          <div class="step-number s1">01</div>
+          <div class="step-badge bg-s1">
+            <div class="step-badge-dot"></div>
+            CLAUDE.md
+          </div>
+        </div>
+        <div class="step-right">
+          <div class="section-header">
+            <span class="section-num">STEP 01</span>
+          </div>
+          <h2 class="step-heading s1">기본 규칙<br />정해주기</h2>
+          <p class="step-subheading">가장 중요한 포스트잇 메모 · 핵심 업무 수칙</p>
+          <p class="step-body">
+            새로 온 비서의 모니터에 가장 중요한 포스트잇 메모를 붙여주는 단계입니다. 비서가 일을 시작할 때마다 항상 가장 먼저 쳐다보는 <strong>핵심 업무 수칙</strong>을 여기에 담습니다.
+          </p>
+          <p class="step-body">
+            프로젝트의 기본 규칙 — 어떤 언어를 쓸지, 어떤 도구를 선호하는지, 절대 잊으면 안 되는 컨벤션 — 을 간결하게 적어두면 Claude는 매 대화마다 이 규칙을 가장 먼저 참조합니다.
+          </p>
+          <div class="analogy-box border-s1" style="color: var(--step-1);">
+            <div class="analogy-label">비유</div>
+            <p class="analogy-text">
+              "문서를 작성할 때는 항상 존댓말을 써라", "우리 팀은 A 프로그램 대신 항상 B 프로그램을 쓰니까 명심해라"와 같이, 비서가 매 순간 절대 잊으면 안 되는 프로젝트의 기본 규칙을 적어둡니다.
+            </p>
+          </div>
+          <div class="diagram">
+            <div class="diagram-title">CLAUDE.md 작동 방식</div>
+            <div class="diagram-flow">
+              <div class="diagram-node">
+                <div class="diagram-node-box" style="background: rgba(200,64,26,0.3); border: 1px solid rgba(200,64,26,0.5);">CLAUDE<br/>.md</div>
+                <div class="diagram-node-label">규칙 파일</div>
+              </div>
+              <div class="diagram-arrow">→</div>
+              <div class="diagram-node">
+                <div class="diagram-node-box" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);">대화<br/>시작</div>
+                <div class="diagram-node-label">매 세션</div>
+              </div>
+              <div class="diagram-arrow">→</div>
+              <div class="diagram-node">
+                <div class="diagram-node-box" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);">규칙<br/>적용</div>
+                <div class="diagram-node-label">자동 참조</div>
+              </div>
+              <div class="diagram-arrow">→</div>
+              <div class="diagram-node">
+                <div class="diagram-node-box" style="background: rgba(200,64,26,0.3); border: 1px solid rgba(200,64,26,0.5);">일관된<br/>결과</div>
+                <div class="diagram-node-label">아웃풋</div>
+              </div>
+            </div>
+          </div>
+          <p class="step-body">
+            <span class="code-tag">CLAUDE.md</span>는 프로젝트 루트에 위치하며, Claude Code가 실행될 때마다 자동으로 읽혀 컨텍스트에 포함됩니다. 짧고 명확하게 작성할수록 효과적입니다.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP 2 -->
+    <section class="section" id="step2">
+      <div class="step-card">
+        <div class="step-left">
+          <div class="step-number s2">02</div>
+          <div class="step-badge bg-s2">
+            <div class="step-badge-dot"></div>
+            Skill
+          </div>
+        </div>
+        <div class="step-right">
+          <div class="section-header">
+            <span class="section-num">STEP 02</span>
+          </div>
+          <h2 class="step-heading s2">매뉴얼<br />쥐여주기</h2>
+          <p class="step-subheading">재사용 가능한 작업 지침서 · 서랍 속 매뉴얼</p>
+          <p class="step-body">
+            비서에게 회사의 모든 지식을 다 외우라고 강요할 수는 없습니다. 대신, 특정 업무를 할 때만 꺼내서 읽어볼 수 있는 <strong>재사용 가능한 작업 지침서(매뉴얼)</strong>를 책상 서랍에 넣어줍니다.
+          </p>
+          <p class="step-body">
+            스킬은 특정 작업 유형에 특화된 지침, 예시, 베스트 프랙티스를 담은 파일 묶음입니다. 평소에는 메모리에 올라가지 않다가, 해당 업무가 필요할 때 Claude가 알아서 꺼내 읽고 따릅니다.
+          </p>
+          <div class="analogy-box border-s2" style="color: var(--step-2);">
+            <div class="analogy-label">비유</div>
+            <p class="analogy-text">
+              평소에는 잊고 있다가, 상사가 "웹사이트에 배포해 줘"라고 지시하면 비서가 알아서 '웹사이트 배포 매뉴얼'을 서랍에서 꺼내 순서대로 따라 하는 식입니다.
+            </p>
+          </div>
+          <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 1.5rem;">
+            <div style="flex: 1; min-width: 200px; background: var(--paper-dark); padding: 1.5rem; border-radius: 4px;">
+              <div style="font-family: var(--mono); font-size: 10px; letter-spacing: 0.2em; color: var(--step-2); margin-bottom: 0.8rem;">SKILL 구조</div>
+              <div style="font-family: var(--mono); font-size: 12px; color: var(--muted); line-height: 2;">
+                📁 skills/<br/>
+                &nbsp;&nbsp;📁 deploy-web/<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;📄 SKILL.md<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;📄 steps.md<br/>
+                &nbsp;&nbsp;📁 write-report/<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;📄 SKILL.md
+              </div>
+            </div>
+            <div style="flex: 1; min-width: 200px; background: var(--paper-dark); padding: 1.5rem; border-radius: 4px;">
+              <div style="font-family: var(--mono); font-size: 10px; letter-spacing: 0.2em; color: var(--step-2); margin-bottom: 0.8rem;">핵심 특성</div>
+              <ul style="font-family: var(--sans); font-size: 14px; color: var(--ink); line-height: 2.2; list-style: none; padding: 0;">
+                <li>✓ &nbsp;필요할 때만 로드</li>
+                <li>✓ &nbsp;재사용 가능</li>
+                <li>✓ &nbsp;팀 간 공유 가능</li>
+                <li>✓ &nbsp;맥락 비용 절약</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP 3 -->
+    <section class="section" id="step3">
+      <div class="step-card">
+        <div class="step-left">
+          <div class="step-number s3">03</div>
+          <div class="step-badge bg-s3">
+            <div class="step-badge-dot"></div>
+            MCP
+          </div>
+        </div>
+        <div class="step-right">
+          <div class="section-header">
+            <span class="section-num">STEP 03</span>
+          </div>
+          <h2 class="step-heading s3">외부 전화기<br />놓아주기</h2>
+          <p class="step-subheading">Model Context Protocol · 외부 서비스 연결</p>
+          <p class="step-body">
+            AI 비서는 원래 자기 컴퓨터(두뇌) 안에서만 일할 수 있습니다. MCP는 외부 세상과 소통할 수 있도록 <strong>만능 사내 전화기</strong>를 놔주는 단계입니다.
+          </p>
+          <p class="step-body">
+            MCP(Model Context Protocol)는 Claude가 외부 데이터베이스, 사내 메신저, 파일 시스템, 웹 서비스 등 다양한 외부 도구와 직접 연결할 수 있게 해주는 표준 프로토콜입니다.
+          </p>
+          <div class="analogy-box border-s3" style="color: var(--step-3);">
+            <div class="analogy-label">비유</div>
+            <p class="analogy-text">
+              "고객 데이터베이스에서 홍길동 님의 자료를 찾아줘", "사내 메신저(Slack)로 마케팅팀에 회의 끝났다고 알림 좀 보내줘"라고 지시하면, 비서가 MCP라는 전화기를 써서 외부 서비스에 직접 접속하고 소통합니다.
+            </p>
+          </div>
+          <div class="diagram">
+            <div class="diagram-title">MCP 연결 구조</div>
+            <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 1rem; align-items: center;">
+              <div style="text-align: center;">
+                <div style="width: 70px; height: 70px; border-radius: 50%; background: rgba(26,140,90,0.2); border: 2px solid rgba(26,140,90,0.4); display: flex; align-items: center; justify-content: center; margin: 0 auto 0.5rem; font-size: 28px;">🤖</div>
+                <div style="font-family: var(--mono); font-size: 10px; color: rgba(255,255,255,0.4); letter-spacing: 0.1em;">CLAUDE</div>
+              </div>
+              <div style="text-align: center;">
+                <div style="font-family: var(--mono); font-size: 11px; color: rgba(26,140,90,0.8); letter-spacing: 0.1em; padding: 0.5rem 1rem; border: 1px solid rgba(26,140,90,0.3); border-radius: 4px;">MCP</div>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 0.8rem;">
+                <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 0.6rem 1rem; font-family: var(--mono); font-size: 11px; color: rgba(255,255,255,0.5);">📊 Database</div>
+                <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 0.6rem 1rem; font-family: var(--mono); font-size: 11px; color: rgba(255,255,255,0.5);">💬 Slack / Teams</div>
+                <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 0.6rem 1rem; font-family: var(--mono); font-size: 11px; color: rgba(255,255,255,0.5);">🗂️ File System</div>
+                <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 0.6rem 1rem; font-family: var(--mono); font-size: 11px; color: rgba(255,255,255,0.5);">🌐 Web APIs</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP 4 -->
+    <section class="section" id="step4">
+      <div class="step-card">
+        <div class="step-left">
+          <div class="step-number s4">04</div>
+          <div class="step-badge bg-s4">
+            <div class="step-badge-dot"></div>
+            Subagent
+          </div>
+        </div>
+        <div class="step-right">
+          <div class="section-header">
+            <span class="section-num">STEP 04</span>
+          </div>
+          <h2 class="step-heading s4">인턴<br />채용하기</h2>
+          <p class="step-subheading">서브에이전트 · 자료 조사 전문 인턴</p>
+          <p class="step-body">
+            비서에게 한 번에 100쪽짜리 문서 10개를 읽으라고 하면, 비서도 머리가 복잡해져서 중요한 내용을 까먹습니다. 그래서 메인 비서를 도울 <strong>따로 파견 보내는 요약 전문 인턴</strong>을 하나 더 부릅니다.
+          </p>
+          <p class="step-body">
+            서브에이전트는 메인 Claude와 완전히 분리된 컨텍스트 창을 가진 별도의 AI 인스턴스입니다. 방대한 자료를 독립적으로 처리하고 핵심 요약만 메인 에이전트에게 전달하여 전체 시스템의 효율을 극대화합니다.
+          </p>
+          <div class="analogy-box border-s4" style="color: var(--step-4);">
+            <div class="analogy-label">비유</div>
+            <p class="analogy-text">
+              방대한 시장 조사 자료를 분석할 때, 메인 비서가 직접 읽는 대신 서브에이전트(인턴)를 별개의 방으로 보냅니다. 인턴이 방대한 자료를 다 읽고 핵심 요약본만 딱 한 장으로 정리해서 메인 비서에게 가져다주어 효율을 높입니다.
+            </p>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 1.5rem; align-items: center; margin-top: 2rem; background: var(--paper-dark); padding: 2rem; border-radius: 4px;">
+            <div>
+              <div style="font-family: var(--mono); font-size: 10px; letter-spacing: 0.2em; color: var(--muted); margin-bottom: 0.8rem;">메인 에이전트</div>
+              <div style="font-family: var(--sans); font-size: 13px; line-height: 1.7; color: var(--ink);">지시 내리기<br/>결과 수신<br/>최종 판단</div>
+            </div>
+            <div style="font-size: 24px; text-align: center;">⇄</div>
+            <div>
+              <div style="font-family: var(--mono); font-size: 10px; letter-spacing: 0.2em; color: var(--step-4); margin-bottom: 0.8rem;">서브에이전트</div>
+              <div style="font-family: var(--sans); font-size: 13px; line-height: 1.7; color: var(--ink);">대용량 자료 처리<br/>독립 컨텍스트<br/>요약본 반환</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP 5 -->
+    <section class="section" id="step5">
+      <div class="step-card">
+        <div class="step-left">
+          <div class="step-number s5">05</div>
+          <div class="step-badge bg-s5">
+            <div class="step-badge-dot"></div>
+            Hook
+          </div>
+        </div>
+        <div class="step-right">
+          <div class="section-header">
+            <span class="section-num">STEP 05</span>
+          </div>
+          <h2 class="step-heading s5">자동 스위치<br />달기</h2>
+          <p class="step-subheading">훅 · 기계식 자동화 트리거</p>
+          <p class="step-body">
+            비서가 굳이 똑똑한 두뇌(AI)를 쓰지 않아도 알아서 돌아가게 만드는 <strong>기계적인 자동 스위치</strong>를 설치합니다. 특정 이벤트가 발생하면 무조건 실행되는 자동화 규칙입니다.
+          </p>
+          <p class="step-body">
+            훅은 Claude의 AI 판단을 거치지 않고 특정 행동(파일 저장, 명령 실행 전후 등)에 자동으로 반응하는 스크립트입니다. 코드 품질 검사, 포맷팅, 로깅 등 반복적인 작업에 이상적입니다.
+          </p>
+          <div class="analogy-box border-s5" style="color: var(--step-5);">
+            <div class="analogy-label">비유</div>
+            <p class="analogy-text">
+              "내가 작성한 코드를 저장할 때마다 무조건 맞춤법/코드 검사기(ESLint)를 돌려라"처럼, 특정 행동을 하면 무조건 기계적으로 작동하는 자동화 세팅입니다.
+            </p>
+          </div>
+          <div style="margin-top: 2rem; display: flex; flex-direction: column; gap: 1rem;">
+            <div style="display: flex; align-items: center; gap: 1.5rem; background: var(--paper-dark); padding: 1.2rem 1.5rem; border-radius: 4px; border-left: 3px solid var(--step-5);">
+              <div style="font-family: var(--mono); font-size: 11px; color: var(--step-5); white-space: nowrap;">파일 저장</div>
+              <div style="font-size: 16px; color: var(--muted);">→</div>
+              <div style="font-family: var(--sans); font-size: 13px; color: var(--ink);">ESLint 자동 실행</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 1.5rem; background: var(--paper-dark); padding: 1.2rem 1.5rem; border-radius: 4px; border-left: 3px solid var(--step-5);">
+              <div style="font-family: var(--mono); font-size: 11px; color: var(--step-5); white-space: nowrap;">명령 실행 전</div>
+              <div style="font-size: 16px; color: var(--muted);">→</div>
+              <div style="font-family: var(--sans); font-size: 13px; color: var(--ink);">위험 명령 차단 검사</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 1.5rem; background: var(--paper-dark); padding: 1.2rem 1.5rem; border-radius: 4px; border-left: 3px solid var(--step-5);">
+              <div style="font-family: var(--mono); font-size: 11px; color: var(--step-5); white-space: nowrap;">작업 완료 후</div>
+              <div style="font-size: 16px; color: var(--muted);">→</div>
+              <div style="font-family: var(--sans); font-size: 13px; color: var(--ink);">자동 테스트 실행 & 로그 기록</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP 6 -->
+    <section class="section" id="step6">
+      <div class="step-card">
+        <div class="step-left">
+          <div class="step-number s6">06</div>
+          <div class="step-badge bg-s6">
+            <div class="step-badge-dot"></div>
+            Plugin
+          </div>
+        </div>
+        <div class="step-right">
+          <div class="section-header">
+            <span class="section-num">STEP 06</span>
+          </div>
+          <h2 class="step-heading s6">공구 세트로<br />포장하기</h2>
+          <p class="step-subheading">플러그인 · 종합 도구 패키지</p>
+          <p class="step-body">
+            앞에서 만든 매뉴얼(스킬), 전화기(MCP), 인턴(서브에이전트), 자동 스위치(훅)를 <strong>하나의 박스에 예쁘게 포장</strong>해 종합 공구 세트로 만드는 단계입니다.
+          </p>
+          <p class="step-body">
+            플러그인은 여러 도구와 설정을 하나의 패키지로 묶어 다른 프로젝트에 즉시 적용하거나 팀원 및 커뮤니티와 공유할 수 있게 해줍니다. 한 번 잘 만들어두면 어디서든 재사용이 가능합니다.
+          </p>
+          <div class="analogy-box border-s6" style="color: var(--step-6);">
+            <div class="analogy-label">비유</div>
+            <p class="analogy-text">
+              내가 완벽하게 세팅한 '신입 비서 업무 도구 박스'를 만들어서 다른 팀 프로젝트에 그대로 복사해서 쓰거나, 마켓플레이스를 통해 다른 회사 사람들에게 공유(배포)할 수 있습니다.
+            </p>
+          </div>
+          <div style="margin-top: 2rem; background: var(--paper-dark); padding: 2rem; border-radius: 4px;">
+            <div style="font-family: var(--mono); font-size: 10px; letter-spacing: 0.2em; color: var(--step-6); margin-bottom: 1.5rem;">PLUGIN 패키지 구성</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+              <div style="display: flex; align-items: center; gap: 0.8rem; font-family: var(--sans); font-size: 13px; color: var(--ink);">
+                <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--step-2); flex-shrink: 0;"></span>스킬 (매뉴얼)
+              </div>
+              <div style="display: flex; align-items: center; gap: 0.8rem; font-family: var(--sans); font-size: 13px; color: var(--ink);">
+                <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--step-3); flex-shrink: 0;"></span>MCP 설정
+              </div>
+              <div style="display: flex; align-items: center; gap: 0.8rem; font-family: var(--sans); font-size: 13px; color: var(--ink);">
+                <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--step-4); flex-shrink: 0;"></span>서브에이전트 설정
+              </div>
+              <div style="display: flex; align-items: center; gap: 0.8rem; font-family: var(--sans); font-size: 13px; color: var(--ink);">
+                <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--step-5); flex-shrink: 0;"></span>훅 스크립트
+              </div>
+            </div>
+            <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--rule); font-family: var(--mono); font-size: 12px; color: var(--muted);">
+              → 하나의 패키지로 배포 · 공유 · 재사용
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- CONTEXT COST SECTION -->
+  <section id="context" style="opacity: 0; transform: translateY(40px); transition: opacity 0.7s ease, transform 0.7s ease;">
+    <div class="context-section">
+      <div style="max-width: 1280px; margin: 0 auto; position: relative; z-index: 1;">
+        <div style="display: flex; align-items: baseline; gap: 1.5rem; margin-bottom: 1rem;">
+          <span style="font-family: var(--mono); font-size: 11px; color: rgba(255,255,255,0.3); letter-spacing: 0.15em;">FINAL STEP</span>
+        </div>
+        <h2 style="font-family: var(--display); font-size: clamp(40px, 6vw, 80px); color: #fff; letter-spacing: 0.03em; line-height: 1;">
+          비서의 뇌 용량<br />
+          <span style="color: var(--accent);">관리하기</span>
+        </h2>
+        <p style="font-family: var(--mono); font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(255,255,255,0.35); margin-top: 0.5rem; margin-bottom: 3rem;">맥락 비용 (Context Cost) · 가장 중요한 마지막 단계</p>
+
+        <p style="font-family: var(--sans); font-size: clamp(15px, 1.4vw, 17px); font-weight: 300; color: rgba(255,255,255,0.7); max-width: 700px; line-height: 1.85; margin-bottom: 2rem;">
+          이 도구들이 좋다고 해서 모니터에 포스트잇을 100장 붙이고(CLAUDE.md), 매뉴얼을 수십 개씩 꺼내두면(스킬), 비서가 혼란에 빠져 엉뚱한 실수를 하게 됩니다. 각 도구가 가장 잘하는 역할만 딱딱 맡겨서 뇌 용량을 아껴주는 것이 핵심입니다.
+        </p>
+
+        <!-- BRAIN METER -->
+        <div class="brain-meter">
+          <div class="brain-meter-label">과부하 상태 (잘못된 운영)</div>
+          <div class="brain-meter-bar">
+            <div class="brain-meter-fill danger" data-width="92"></div>
+          </div>
+          <div class="brain-meter-desc">CLAUDE.md 100줄 + 스킬 30개 동시 로드 + 무분별한 MCP → 오류 급증</div>
+        </div>
+
+        <div class="brain-meter">
+          <div class="brain-meter-label">최적 상태 (올바른 운영)</div>
+          <div class="brain-meter-bar">
+            <div class="brain-meter-fill safe" data-width="35"></div>
+          </div>
+          <div class="brain-meter-desc">핵심 규칙만 CLAUDE.md + 필요한 스킬만 호출 + 서브에이전트 위임 → 안정적 성능</div>
+        </div>
+
+        <div class="context-grid">
+          <div class="context-card good">
+            <div class="context-card-label">올바른 방법 01</div>
+            <div class="context-card-title">CLAUDE.md<br/>간결하게</div>
+            <p class="context-card-text">항상 지켜야 할 기본 규칙만 짧고 명확하게 적어둡니다. 길고 복잡한 규칙은 오히려 성능을 저하시킵니다.</p>
+          </div>
+          <div class="context-card bad">
+            <div class="context-card-label">올바른 방법 02</div>
+            <div class="context-card-title">무거운 작업은<br/>인턴에게</div>
+            <p class="context-card-text">방대한 자료를 읽는 일은 메인 비서의 뇌를 쓰지 않도록 서브에이전트(인턴)에게 넘깁니다.</p>
+          </div>
+          <div class="context-card tip">
+            <div class="context-card-label">올바른 방법 03</div>
+            <div class="context-card-title">도구는<br/>필요할 때만</div>
+            <p class="context-card-text">외부 연락이 필요할 때만 MCP와 스킬을 결합해 잠깐 꺼내 씁니다. 항상 켜두는 것은 낭비입니다.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SUMMARY TABLE -->
+  <main>
+    <section class="summary-section section">
+      <div style="display: flex; align-items: baseline; gap: 1.5rem; margin-bottom: 0.5rem;">
+        <span style="font-family: var(--mono); font-size: 11px; color: var(--muted); letter-spacing: 0.15em;">OVERVIEW</span>
+      </div>
+      <h2 style="font-family: var(--display); font-size: clamp(32px, 5vw, 60px); letter-spacing: 0.03em; line-height: 1;">7단계 한눈에 보기</h2>
+      <table class="summary-table">
+        <thead>
+          <tr>
+            <th>단계</th>
+            <th>도구</th>
+            <th>비유</th>
+            <th>핵심 역할</th>
+            <th>맥락 비용</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="step-dot" style="background: var(--step-1);"></span><span class="step-name">01</span></td>
+            <td><span class="code-tag">CLAUDE.md</span></td>
+            <td>모니터 포스트잇</td>
+            <td>매 세션 자동 적용되는 기본 규칙</td>
+            <td><span class="highlight-pill" style="background: var(--accent-light); color: var(--accent);">항상 소비</span></td>
+          </tr>
+          <tr>
+            <td><span class="step-dot" style="background: var(--step-2);"></span><span class="step-name">02</span></td>
+            <td><span class="code-tag">Skill</span></td>
+            <td>서랍 속 매뉴얼</td>
+            <td>필요할 때만 꺼내는 재사용 지침서</td>
+            <td><span class="highlight-pill" style="background: #d5e8f0; color: var(--step-2);">필요시 소비</span></td>
+          </tr>
+          <tr>
+            <td><span class="step-dot" style="background: var(--step-3);"></span><span class="step-name">03</span></td>
+            <td><span class="code-tag">MCP</span></td>
+            <td>사내 전화기</td>
+            <td>외부 서비스와 실시간 연결</td>
+            <td><span class="highlight-pill" style="background: #d5e8f0; color: var(--step-2);">필요시 소비</span></td>
+          </tr>
+          <tr>
+            <td><span class="step-dot" style="background: var(--step-4);"></span><span class="step-name">04</span></td>
+            <td><span class="code-tag">Subagent</span></td>
+            <td>파견 인턴</td>
+            <td>독립 컨텍스트로 대용량 처리</td>
+            <td><span class="highlight-pill" style="background: #e8d5f0; color: var(--step-4);">분리 소비</span></td>
+          </tr>
+          <tr>
+            <td><span class="step-dot" style="background: var(--step-5);"></span><span class="step-name">05</span></td>
+            <td><span class="code-tag">Hook</span></td>
+            <td>자동 스위치</td>
+            <td>AI 판단 없이 자동 실행되는 트리거</td>
+            <td><span class="highlight-pill" style="background: #f0ead5; color: var(--step-5);">거의 없음</span></td>
+          </tr>
+          <tr>
+            <td><span class="step-dot" style="background: var(--step-6);"></span><span class="step-name">06</span></td>
+            <td><span class="code-tag">Plugin</span></td>
+            <td>공구 세트 박스</td>
+            <td>도구 묶음 패키지화 및 배포</td>
+            <td><span class="highlight-pill" style="background: #d5e8f0; color: var(--step-2);">필요시 소비</span></td>
+          </tr>
+          <tr>
+            <td><span class="step-dot" style="background: var(--step-final);"></span><span class="step-name">💡</span></td>
+            <td><span class="code-tag">Context Cost</span></td>
+            <td>뇌 용량 관리</td>
+            <td>각 도구의 역할 분리로 효율 극대화</td>
+            <td><span class="highlight-pill" style="background: var(--paper-dark); color: var(--muted);">절약 목표</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-brand">CLAUDE CODE</div>
+    <div class="footer-copy">
+      Claude Code 운영 가이드<br />
+      AI 비서 세팅 7단계 프레임워크<br />
+      <span style="color: rgba(255,255,255,0.2);">© 2026 Dorothy J · All rights reserved</span>
+    </div>
+  </footer>
+
+  <script>
+    // ─── PROGRESS BAR ───
+    const progressBar = document.getElementById('progress-bar');
+    window.addEventListener('scroll', () => {
+      const scrollTop = window.scrollY;
+      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+      const progress = (scrollTop / docHeight) * 100;
+      progressBar.style.width = progress + '%';
+    });
+
+    // ─── NAV SHOW/HIDE ───
+    const nav = document.getElementById('main-nav');
+    let lastScroll = 0;
+    window.addEventListener('scroll', () => {
+      const current = window.scrollY;
+      if (current > window.innerHeight * 0.5) {
+        nav.classList.add('visible');
+      } else {
+        nav.classList.remove('visible');
+      }
+      lastScroll = current;
+    });
+
+    // ─── SCROLL REVEAL ───
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+          // Animate brain meters when context section is visible
+          if (entry.target.id === 'context') {
+            setTimeout(() => {
+              document.querySelectorAll('.brain-meter-fill').forEach(fill => {
+                fill.style.width = fill.dataset.width + '%';
+              });
+            }, 300);
+          }
+        }
+      });
+    }, { threshold: 0.1 });
+
+    document.querySelectorAll('.section, #context').forEach(el => observer.observe(el));
+
+    // ─── SMOOTH SCROLL ───
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+      anchor.addEventListener('click', (e) => {
+        e.preventDefault();
+        const target = document.querySelector(anchor.getAttribute('href'));
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+    });
+  </script>
+</body>
+</html>
